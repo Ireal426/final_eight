@@ -60,7 +60,7 @@ func (s ParcelStore) Get(number int) (Parcel, error) {
 		&p.CreatedAt,
 	)
 	if err != nil {
-		return p, err
+		return Parcel{}, err
 	}
 
 	return p, nil
@@ -99,7 +99,9 @@ func (s ParcelStore) GetByClient(client int) ([]Parcel, error) {
 
 		res = append(res, p)
 	}
-
+	if err := rows.Err(); err != nil {
+    	return nil, err
+	}
 	return res, nil
 }
 
@@ -119,51 +121,52 @@ func (s ParcelStore) SetAddress(number int, address string) error {
 	// реализуйте обновление адреса в таблице parcel
 	// менять адрес можно только если значение статуса registered
 
-	row := s.db.QueryRow(
-		`SELECT status FROM parcel WHERE number = ?`,
+	result, err := s.db.Exec(
+		`UPDATE parcel 
+		 SET address = ? 
+		 WHERE number = ? AND status = ?`,
+		address,
 		number,
+		ParcelStatusRegistered,
 	)
-
-	var status string
-	if err := row.Scan(&status); err != nil {
+	if err != nil {
 		return err
 	}
 
-	if status != ParcelStatusRegistered {
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
 		return errors.New("cannot change address")
 	}
 
-	_, err := s.db.Exec(
-		`UPDATE parcel SET address = ? WHERE number = ?`,
-		address,
-		number,
-	)
-
-	return err
+	return nil
 }
 
 func (s ParcelStore) Delete(number int) error {
 	// реализуйте удаление строки из таблицы parcel
 	// удалять строку можно только если значение статуса registered
 
-	row := s.db.QueryRow(
-		`SELECT status FROM parcel WHERE number = ?`,
+	result, err := s.db.Exec(
+		`DELETE FROM parcel 
+		 WHERE number = ? AND status = ?`,
 		number,
+		ParcelStatusRegistered,
 	)
-
-	var status string
-	if err := row.Scan(&status); err != nil {
+	if err != nil {
 		return err
 	}
 
-	if status != ParcelStatusRegistered {
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
 		return errors.New("cannot delete")
 	}
 
-	_, err := s.db.Exec(
-		`DELETE FROM parcel WHERE number = ?`,
-		number,
-	)
-
-	return err
+	return nil
 }
